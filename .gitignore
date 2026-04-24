@@ -116,4 +116,12 @@ app.*.symbols
 !**/ios/**/default.pbxuser
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
-!/dev/ci/**/Gemfile.lock
+!/dev/ci/**/Gemfile.lockmeal_app/
+meal_app/.dart_tool/
+meal_app/build/
+meal_app/android/
+meal_app/ios/
+meal_app/macos/
+meal_app/linux/
+meal_app/windows/
+meal_app/web/
