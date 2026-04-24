@@ -115,7 +115,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: DropdownButtonFormField<String>(
-            value: _selectedCategory,
+            initialValue: _selectedCategory,
             decoration: const InputDecoration(
               labelText: 'Desire for today',
               border: OutlineInputBorder(),
