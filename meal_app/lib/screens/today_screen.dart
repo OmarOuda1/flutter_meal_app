@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -159,12 +160,17 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
                               fit: StackFit.expand,
                               children: [
                                 _recommendedRecipes[_currentIndex].imageUrl.isNotEmpty
-                                    ? CachedNetworkImage(
-                                        imageUrl: _recommendedRecipes[_currentIndex].imageUrl,
-                                        fit: BoxFit.cover,
-                                        placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                                        errorWidget: (context, url, error) => const Icon(Icons.error),
-                                      )
+                                    ? (_recommendedRecipes[_currentIndex].imageUrl.startsWith('http')
+                                        ? CachedNetworkImage(
+                                            imageUrl: _recommendedRecipes[_currentIndex].imageUrl,
+                                            fit: BoxFit.cover,
+                                            placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                                            errorWidget: (context, url, error) => const Icon(Icons.error),
+                                          )
+                                        : Image.file(
+                                            File(_recommendedRecipes[_currentIndex].imageUrl),
+                                            fit: BoxFit.cover,
+                                          ))
                                     : Container(
                                         color: Colors.grey[300],
                                         child: const Icon(Icons.fastfood, size: 100),

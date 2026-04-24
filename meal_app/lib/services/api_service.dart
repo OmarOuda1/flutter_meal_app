@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/recipe.dart';
 
 abstract class ApiService {
-  Future<List<Recipe>> searchRecipes(String query);
+  Future<List<Recipe>> searchRecipes(String query, {int skip = 0, int limit = 20});
   Future<List<Recipe>> getRecipesByCategory(String category);
   Future<List<String>> getCategories();
   Future<Recipe?> getRecipeById(String id);
@@ -13,12 +13,18 @@ class TheMealDBService implements ApiService {
   final String _baseUrl = 'https://www.themealdb.com/api/json/v1/1';
 
   @override
-  Future<List<Recipe>> searchRecipes(String query) async {
-    final response = await http.get(Uri.parse('$_baseUrl/search.php?s=$query'));
+  Future<List<Recipe>> searchRecipes(String query, {int skip = 0, int limit = 20}) async {
+    // TheMealDB doesn't support proper pagination for search.
+    // We'll fetch all and simulate pagination locally.
+    // If the query is empty, we search for a random letter to populate the feed.
+    final actualQuery = query.isEmpty ? 'c' : query;
+    final response = await http.get(Uri.parse('$_baseUrl/search.php?s=$actualQuery'));
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       if (data['meals'] != null) {
-        return (data['meals'] as List).map((json) => Recipe.fromMealDB(json)).toList();
+        final allRecipes = (data['meals'] as List).map((json) => Recipe.fromMealDB(json)).toList();
+        if (skip >= allRecipes.length) return [];
+        return allRecipes.skip(skip).take(limit).toList();
       }
     }
     return [];
@@ -67,8 +73,8 @@ class DummyJSONService implements ApiService {
   final String _baseUrl = 'https://dummyjson.com/recipes';
 
   @override
-  Future<List<Recipe>> searchRecipes(String query) async {
-    final response = await http.get(Uri.parse('$_baseUrl/search?q=$query'));
+  Future<List<Recipe>> searchRecipes(String query, {int skip = 0, int limit = 20}) async {
+    final response = await http.get(Uri.parse('$_baseUrl/search?q=$query&skip=$skip&limit=$limit'));
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       if (data['recipes'] != null) {

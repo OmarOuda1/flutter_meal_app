@@ -1,16 +1,22 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../models/recipe.dart';
 import '../providers/recipes_provider.dart';
 import 'recipe_detail_screen.dart';
 
-class MyRecipesScreen extends ConsumerWidget {
+class MyRecipesScreen extends ConsumerStatefulWidget {
   const MyRecipesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyRecipesScreen> createState() => _MyRecipesScreenState();
+}
+
+class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen> {
+  @override
+  Widget build(BuildContext context) {
     final customRecipes = ref.watch(customRecipesProvider);
 
     return Scaffold(
@@ -45,32 +51,62 @@ class MyRecipesScreen extends ConsumerWidget {
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          _showAddRecipeDialog(context, ref);
+          _showAddRecipeDialog(context);
         },
         child: const Icon(Icons.add),
       ),
     );
   }
 
-  void _showAddRecipeDialog(BuildContext context, WidgetRef ref) {
+  void _showAddRecipeDialog(BuildContext context) {
     final titleController = TextEditingController();
     final ingredientsController = TextEditingController();
     final instructionsController = TextEditingController();
     final categoryController = TextEditingController();
+    String? selectedImagePath;
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Add Custom Recipe'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(labelText: 'Title'),
-                ),
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Add Custom Recipe'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (selectedImagePath != null)
+                      Image.file(
+                        File(selectedImagePath!),
+                        height: 150,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      )
+                    else
+                      Container(
+                        height: 150,
+                        width: double.infinity,
+                        color: Colors.grey[300],
+                        child: const Icon(Icons.image, size: 50),
+                      ),
+                    TextButton.icon(
+                      onPressed: () async {
+                        final picker = ImagePicker();
+                        final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+                        if (pickedFile != null) {
+                          setStateDialog(() {
+                            selectedImagePath = pickedFile.path;
+                          });
+                        }
+                      },
+                      icon: const Icon(Icons.photo_library),
+                      label: const Text('Select Image'),
+                    ),
+                    TextField(
+                      controller: titleController,
+                      decoration: const InputDecoration(labelText: 'Title'),
+                    ),
                 TextField(
                   controller: categoryController,
                   decoration: const InputDecoration(labelText: 'Category (e.g. Italian)'),
@@ -80,40 +116,42 @@ class MyRecipesScreen extends ConsumerWidget {
                   decoration: const InputDecoration(labelText: 'Ingredients'),
                   maxLines: 3,
                 ),
-                TextField(
-                  controller: instructionsController,
-                  decoration: const InputDecoration(labelText: 'Instructions'),
-                  maxLines: 3,
+                    TextField(
+                      controller: instructionsController,
+                      decoration: const InputDecoration(labelText: 'Instructions'),
+                      maxLines: 3,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (titleController.text.isNotEmpty) {
+                      final newRecipe = Recipe(
+                        // Simple UUID for offline recipes
+                        id: 'custom_${DateTime.now().millisecondsSinceEpoch}',
+                        title: titleController.text,
+                        imageUrl: selectedImagePath ?? '', // We could add image picker later
+                        instructions: instructionsController.text,
+                        ingredients: ingredientsController.text,
+                        category: categoryController.text,
+                        area: '',
+                        isCustom: true,
+                      );
+                      ref.read(customRecipesProvider.notifier).addCustomRecipe(newRecipe);
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: const Text('Save'),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (titleController.text.isNotEmpty) {
-                  final newRecipe = Recipe(
-                    // Simple UUID for offline recipes
-                    id: 'custom_${DateTime.now().millisecondsSinceEpoch}',
-                    title: titleController.text,
-                    imageUrl: '', // We could add image picker later
-                    instructions: instructionsController.text,
-                    ingredients: ingredientsController.text,
-                    category: categoryController.text,
-                    area: '',
-                    isCustom: true,
-                  );
-                  ref.read(customRecipesProvider.notifier).addCustomRecipe(newRecipe);
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
+            );
+          },
         );
       },
     );
