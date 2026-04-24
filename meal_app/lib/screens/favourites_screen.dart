@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -86,12 +87,17 @@ class _FavouritesScreenState extends ConsumerState<FavouritesScreen> {
                           ? SizedBox(
                               width: 50,
                               height: 50,
-                              child: CachedNetworkImage(
-                                imageUrl: recipe.imageUrl,
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => const CircularProgressIndicator(),
-                                errorWidget: (context, url, error) => const Icon(Icons.error),
-                              ),
+                              child: recipe.imageUrl.startsWith('http')
+                                  ? CachedNetworkImage(
+                                      imageUrl: recipe.imageUrl,
+                                      fit: BoxFit.cover,
+                                      placeholder: (context, url) => const CircularProgressIndicator(),
+                                      errorWidget: (context, url, error) => const Icon(Icons.error),
+                                    )
+                                  : Image.file(
+                                      File(recipe.imageUrl),
+                                      fit: BoxFit.cover,
+                                    ),
                             )
                           : Container(
                               width: 50,

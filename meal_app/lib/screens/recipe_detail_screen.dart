@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -34,13 +35,19 @@ class RecipeDetailScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (recipe.imageUrl.isNotEmpty)
-              CachedNetworkImage(
-                imageUrl: recipe.imageUrl,
-                height: 250,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                errorWidget: (context, url, error) => const Icon(Icons.error),
-              ),
+              recipe.imageUrl.startsWith('http')
+                  ? CachedNetworkImage(
+                      imageUrl: recipe.imageUrl,
+                      height: 250,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                      errorWidget: (context, url, error) => const Icon(Icons.error),
+                    )
+                  : Image.file(
+                      File(recipe.imageUrl),
+                      height: 250,
+                      fit: BoxFit.cover,
+                    ),
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(

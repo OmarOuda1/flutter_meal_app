@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -16,50 +17,80 @@ class DiscoverScreen extends ConsumerStatefulWidget {
 
 class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   List<Recipe> _recipes = [];
   bool _isLoading = false;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  String _currentQuery = '';
+  final int _limit = 20;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadInitialRecipes();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 && !_isLoadingMore && _hasMore) {
+      _loadMoreRecipes();
+    }
   }
 
   Future<void> _loadInitialRecipes() async {
     setState(() {
       _isLoading = true;
+      _hasMore = true;
+      _recipes.clear();
     });
     final apiService = ref.read(apiServiceProvider);
-    // Load some default recipes, let's search for an empty string or a generic letter
-    final recipes = await apiService.searchRecipes('chicken');
+    final recipes = await apiService.searchRecipes(_currentQuery, skip: 0, limit: _limit);
     if (mounted) {
       setState(() {
         _recipes = recipes;
         _isLoading = false;
+        if (recipes.length < _limit) {
+          _hasMore = false;
+        }
+      });
+    }
+  }
+
+  Future<void> _loadMoreRecipes() async {
+    setState(() {
+      _isLoadingMore = true;
+    });
+    final apiService = ref.read(apiServiceProvider);
+    final recipes = await apiService.searchRecipes(_currentQuery, skip: _recipes.length, limit: _limit);
+    if (mounted) {
+      setState(() {
+        if (recipes.isEmpty) {
+          _hasMore = false;
+        } else {
+          _recipes.addAll(recipes);
+        }
+        _isLoadingMore = false;
       });
     }
   }
 
   Future<void> _searchRecipes(String query) async {
-    if (query.isEmpty) {
-      _loadInitialRecipes();
-      return;
-    }
-    setState(() {
-      _isLoading = true;
-    });
-    final apiService = ref.read(apiServiceProvider);
-    final recipes = await apiService.searchRecipes(query);
-    if (mounted) {
-      setState(() {
-        _recipes = recipes;
-        _isLoading = false;
-      });
-    }
+    _currentQuery = query;
+    await _loadInitialRecipes();
   }
 
   @override
   Widget build(BuildContext context) {
+    final favorites = ref.watch(favoritesProvider);
+
     return Column(
       children: [
         Padding(
@@ -82,6 +113,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
               : _recipes.isEmpty
                   ? const Center(child: Text('No recipes found.'))
                   : GridView.builder(
+                      controller: _scrollController,
                       padding: const EdgeInsets.all(8),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
@@ -89,10 +121,13 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                         crossAxisSpacing: 8,
                         mainAxisSpacing: 8,
                       ),
-                      itemCount: _recipes.length,
+                      itemCount: _recipes.length + (_isLoadingMore ? 1 : 0),
                       itemBuilder: (context, index) {
+                        if (index == _recipes.length) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
                         final recipe = _recipes[index];
-                        final isFavorite = ref.watch(favoritesProvider).any((r) => r.id == recipe.id);
+                        final isFavorite = favorites.any((r) => r.id == recipe.id);
                         return GestureDetector(
                           onTap: () {
                             Navigator.push(
@@ -109,12 +144,17 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                               children: [
                                 Expanded(
                                   child: recipe.imageUrl.isNotEmpty
-                                      ? CachedNetworkImage(
-                                          imageUrl: recipe.imageUrl,
-                                          fit: BoxFit.cover,
-                                          placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                                          errorWidget: (context, url, error) => const Icon(Icons.error),
-                                        )
+                                      ? (recipe.imageUrl.startsWith('http')
+                                          ? CachedNetworkImage(
+                                              imageUrl: recipe.imageUrl,
+                                              fit: BoxFit.cover,
+                                              placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                                              errorWidget: (context, url, error) => const Icon(Icons.error),
+                                            )
+                                          : Image.file(
+                                              File(recipe.imageUrl),
+                                              fit: BoxFit.cover,
+                                            ))
                                       : Container(
                                           color: Colors.grey[300],
                                           child: const Icon(Icons.fastfood, size: 50),
