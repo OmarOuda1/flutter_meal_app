@@ -21,6 +21,7 @@ class MyApp extends ConsumerWidget {
 
     return MaterialApp(
       title: 'Meal App',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.orange, brightness: Brightness.light),
